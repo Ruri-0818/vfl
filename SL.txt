@@ -1,0 +1,107 @@
+BadVFL
+
+python analyze_embeddings_cifar.py --checkpoint "/home/steve/VFLIP-esorics24-master/checkpoints/CIFAR10_BadVFL_ALL_True_4.pth" --output-dir ./embedding_analysis_cifar_badvfl --trigger-size 5 --position dr --target-class 0 --device cuda:6 --dataset-path "/home/steve/VFLIP-esorics24-master/data/CIFAR10"
+
+python analyze_embeddings_cinic10l.py --checkpoint "/home/steve/VFLIP-esorics24-master/checkpoints/CINIC10L_BadVFL_ALL_True_4.pth" --output-dir ./embedding_analysis_cinic10l_badvfl --trigger-size 5 --position dr --target-class 0 --device cuda:6 --dataset-path "/home/steve/VFLIP-esorics24-master/data/CINIC10"
+
+python analyze_embeddings_imagenette.py --checkpoint "/home/steve/VFLIP-esorics24-master/checkpoints/Imagenette_BadVFL_ALL_True_4.pth" --output-dir ./embedding_analysis_imagenette_badvfl --trigger-size 40 --position dr --target-class 0 --device cuda:6 --dataset-path "/home/steve/VFLIP-esorics24-master/data/Imagenette"
+
+
+Imagenette
+
+python train_cinic10l_villain.py \
+    --dataset CIFAR10 \
+    --batch-size 64 \
+    --epochs 20 \
+    --lr 0.001 \
+    --party-num 4 \
+    --bkd-adversary 1 \
+    --target-class 0 \
+    --poison-budget 0.5 \
+    --Ebkd 5 \
+    --trigger-magnitude 3.0 \
+    --trigger-size 0.75 \
+    --backdoor-weight 5.0 \
+    --has-label-knowledge True \
+    --checkpoint-dir ./checkpoints \
+    --data-dir ./data \
+    --device cuda:6
+
+nohup python train_cifar_villain.py \
+    --dataset  CIFAR10\
+    --batch-size 32 \
+    --epochs 20 \
+    --lr 0.0005 \
+    --party-num 4 \
+    --bkd-adversary 1 \
+    --target-class 0 \
+    --poison-budget 0.5 \
+    --Ebkd 5 \
+    --trigger-magnitude 3.0 \
+    --trigger-size 0.75 \
+    --backdoor-weight 5.0 \
+    --has-label-knowledge True \
+    --checkpoint-dir ./checkpoints \
+    --data-dir ./data/CIFAR10 \
+    --device cuda:6 > cinic10l_villain_training.log 2>&1 &
+
+nohup python train_imagenette_villain.py \
+    --dataset  Imagenette\
+    --batch-size 32 \
+    --epochs 20 \
+    --lr 0.0005 \
+    --party-num 4 \
+    --bkd-adversary 1 \
+    --target-class 0 \
+    --poison-budget 0.5 \
+    --Ebkd 5 \
+    --trigger-magnitude 3.0 \
+    --trigger-size 0.75 \
+    --backdoor-weight 5.0 \
+    --has-label-knowledge True \
+    --checkpoint-dir ./checkpoints \
+    --data-dir ./data/Imagenette \
+    --device cuda:6 > cinic10l_villain_training.log 2>&1 &
+
+
+
+WithInference:
+
+Villian
+
+nohup python train_cifar_villain_with_inference.py --dataset CIFAR10 --data-dir "/home/zxd283/zdg_fed/datasets" --batch-size 32 --epochs 50 --lr 0.001 --momentum 0.9 --weight-decay 0.0001 --trigger-size 0.75 --trigger-magnitude 3.0 --bkd-adversary 1 --party-num 4 --poison-budget 0.7 --target-class 0 --inference-weight 0.5 --history-size 5000 --confidence-threshold 0.3 --log-interval 10 --checkpoint-dir "./checkpoints_villian_cifar_with_inference" --patience 5 --early-stopping  --gpu 1 --Ebkd 5 > villian_cifar_training.txt 2>&1 &
+
+nohup python train_cinic_villain_with_inference.py --data-dir "/home/steve/VFLIP-esorics24-master/data/" --batch-size 32 --epochs 50 --lr 0.001 --momentum 0.9 --weight-decay 0.0001 --trigger-size 0.75 --trigger-magnitude 3.0 --bkd-adversary 1 --party-num 4 --poison-budget 0.4 --target-class 0 --inference-weight 0.5 --history-size 5000 --confidence-threshold 0.3 --log-interval 10 --checkpoint-dir "./checkpoints_villian_cinic_with_inference" --patience 5 --early-stopping  --gpu 0  --Ebkd 5 > villian_cinic_training.txt 2>&1 &
+
+nohup python train_imagenette_villain_with_inference.py --dataset Imagenette --data-dir "/home/steve/VFLIP-esorics24-master/data/Imagenette/" --batch-size 32 --epochs 50 --lr 0.001 --momentum 0.9 --weight-decay 0.0001 --trigger-size 0.75 --trigger-magnitude 3.0 --bkd-adversary 1 --party-num 4 --poison-budget 0.7 --target-class 0 --inference-weight 0.5 --history-size 5000 --confidence-threshold 0.3 --log-interval 10 --checkpoint-dir "./checkpoints_villian_imagenette_with_inference" --patience 5 --early-stopping  --gpu 7 --Ebkd 5 > villian_imagenette_training.txt 2>&1 &
+
+nohup python train_nuswide_villain_with_inference.py --dataset NUSWIDE --data-dir "/home/steve/VFLIP-esorics24-master/data/NUS-WIDE/NUS-WIDE" --batch-size 32 --epochs 50 --lr 0.002 --momentum 0.9 --weight-decay 0.0005 --trigger-size 0.12 --trigger-magnitude 0.5 --bkd-adversary 1 --party-num 3 --poison-budget 0.08 --target-class 0 --inference-weight 0.4 --history-size 1500 --confidence-threshold 0.2 --log-interval 10 --checkpoint-dir "./checkpoints_villian_nuswide_with_inference" --patience 10 --early-stopping --gpu 6 --Ebkd 5 --warmup-epochs 3 --backdoor-weight 0.4 --adaptive-loss-weight --image-size 128 --selected-concepts buildings grass animal water person > villain_nuswide_training.txt 2>&1 &
+
+nohup python train_bank_villain_with_inference.py --dataset BANK --data-dir "/home/steve/VFLIP-esorics24-master/data/bank" --batch-size 64 --epochs 50 --lr 0.002 --weight-decay 0.0005 --trigger-size 0.08 --trigger-magnitude 0.4 --bkd-adversary 1 --party-num 3 --poison-budget 0.06 --target-class 0 --inference-weight 0.15 --history-size 1000 --confidence-threshold 0.35 --log-interval 10 --checkpoint-dir "./checkpoints_villain_bank_with_inference" --patience 12 --early-stopping --gpu 1 --Ebkd 5 --warmup-epochs 4 --backdoor-weight 0.25 --clean-loss-weight 1.2 --adaptive-loss-weight > villain_bank_training.txt 2>&1 &
+
+BadVFL:
+
+nohup python train_cifar_badvfl_with_inference.py --dataset CIFAR10 --batch-size 32 --epochs 50 --lr 0.0005 --party-num 4 --bkd-adversary 1 --target-class 0 --trigger-size 5 --backdoor-weight 2.0 --has-label-knowledge False --checkpoint-dir ./checkpoints_badvfl_cifar10 --data-dir ./data/CIFAR10 --device cuda:0 --Ebkd 5 --poison-budget 0.2 --trigger-intensity 1.0 --num-classes 10 --position dr --trigger-type pattern --inference-weight 0.1 --defense-type NONE --confidence-threshold 0.3 > badvfl_cifar10_training.log 2>&1 &
+
+nohup python train_cinic10_badvfl_with_inference.py --dataset CINIC10 --batch-size 32 --epochs 50 --lr 0.0005 --party-num 4 --bkd-adversary 1 --target-class 0 --trigger-size 5 --backdoor-weight 5.0 --has-label-knowledge False --checkpoint-dir ./checkpoints_badvfl_cifar10 --data-dir ./data/CINIC10 --device cuda:0 --Ebkd 5 --poison-budget 0.4 --trigger-intensity 2.0 --num-classes 10 --position dr --trigger-type pattern --inference-weight 0.1 --defense-type NONE --confidence-threshold 0.3 > badvfl_cinic10_training.log 2>&1 &
+
+nohup python train_imagenette_badvfl_with_inference.py --epochs 50 --batch-size 32 --lr 0.001 --gpu 0 --trigger-size 5 --target-class 0 --Ebkd 5 --bkd-adversary 1 --party-num 4 --backdoor-weight 0.1 --checkpoint-dir ./checkpoints_badvfl_imagenette --inference-weight 0.1 --history-size 5000 --defense-type NONE --confidence-threshold 0.3 --min-epochs 30 --patience 20 --adaptive-threshold --feature-selection --early-stopping --data-dir /home/tsinghuaair/attack/WithInference/data/ > imagenette_badvfl_with_inference.log 2>&1 &
+
+nohup python train_nuswide_badvfl_with_inference.py --epochs 50 --batch-size 32 --lr 0.0005 --gpu 0 --trigger-size 5 --target-class 0 --Ebkd 5 --bkd-adversary 1 --party-num 4 --backdoor-weight 0.8 --checkpoint-dir ./checkpoints_badvfl_nuswide --inference-weight 0.1 --history-size 5000 --confidence-threshold 0.4 --min-epochs 50 --patience 10 --poison-budget 0.05 --defense-type NONE --trigger-intensity 0.6 --image-size 128 --adaptive-threshold --feature-selection --early-stopping --data-dir /home/tsinghuaair/attack/WithInference/data/NUS-WIDE > nuswide_badvfl_with_inference.log 2>&1 &
+
+nohup python train_bank_badvfl_with_inference.py   --epochs 50   --batch-size 128   --lr 0.002   --gpu 0   --trigger-size 0.04   --target-class 0   --Ebkd 5   --bkd-adversary 1   --party-num 3   --backdoor-weight 0.4   --checkpoint-dir ./checkpoints_badvfl_bank   --inference-weight 0.1  --defense-type NONE --history-size 2000   --confidence-threshold 0.4   --min-epochs 25   --patience 15   --poison-budget 0.05   --trigger-intensity 0.3   --adaptive-threshold   --feature-selection   --early-stopping   --data-dir ~/attack/data/bank   > bank_badvfl_with_inference.log 2>&1 &
+
+
+SPLIT_NN
+
+nohup python train_cifar_splitnn.py --dataset CIFAR10 --data-dir "/home/steve/VFLIP-esorics24-master/data/CIFAR10" --batch-size 32 --epochs 50 --lr 0.001 --momentum 0.9 --weight-decay 0.0001 --trigger-scale 0.85 --position mid --gpu 0 --target-class 0 --bkd-adversary 1 --party-num 4 --patience 15 --min-epochs 30 --backdoor-weight 5.0 --has-label-knowledge True --poison-budget 0.5 --Ebkd 5 --checkpoint-dir "./checkpoints_splitnn_cifar10" --num-classes 10 --device cuda:0 --aux-set-size 500 --update-period 10 --perturb-noise 0.2 --defense-type NONE --grad-clip 1.0 --log-interval 10 > splitnn_cifar10_training.log 2>&1 &
+
+nohup python train_cinic10l_splitnn.py --dataset CINIC10L --data-dir "/home/steve/VFLIP-esorics24-master/data/CINIC10" --batch-size 32 --epochs 50 --lr 0.001 --momentum 0.9 --weight-decay 0.0001 --trigger-scale 0.85 --gpu 1 --target-class 0 --bkd-adversary 1 --party-num 4 --patience 15 --min-epochs 30 --backdoor-weight 5.0 --has-label-knowledge True --poison-budget 0.4 --Ebkd 5 --checkpoint-dir "./checkpoints_splitnn_cinic10l" --num-classes 10 --device cuda:1 --aux-set-size 500 --update-period 10 --perturb-noise 0.2 --defense-type NONE --grad-clip 1.0 --log-interval 10 > splitnn_cinic10l_training.log 2>&1 &
+
+nohup python train_imagenette_splitnn.py --dataset Imagenette --data-dir "/home/steve/VFLIP-esorics24-master/data/Imagenette/" --batch-size 32 --epochs 50 --lr 0.001 --momentum 0.9 --weight-decay 0.0001 --trigger-scale 0.3 --gpu 7 --target-class 0 --bkd-adversary 1 --party-num 4 --patience 15 --min-epochs 30 --backdoor-weight 2.0 --has-label-knowledge True --poison-budget 0.1 --defense-type NONE --Ebkd 5 --checkpoint-dir "./checkpoints_splitnn_imagenette" --num-classes 10 --device cuda:7 --aux-set-size 500 --update-period 10 --perturb-noise 0.05 --grad-clip 1.0 --log-interval 10 > splitnn_imagenette_training.log 2>&1 &
+
+nohup python train_nuswide_splitnn.py --dataset NUSWIDE --data-dir "/home/steve/VFLIP-esorics24-master/data/NUS-WIDE/NUS-WIDE" --batch-size 32 --epochs 50 --lr 0.002 --momentum 0.9 --weight-decay 0.0005 --trigger-scale 0.85 --gpu 6 --target-class 0 --bkd-adversary 1 --party-num 3 --patience 10 --min-epochs 30 --backdoor-weight 5.0 --has-label-knowledge True --poison-budget 0.08 --Ebkd 5 --checkpoint-dir "./checkpoints_splitnn_nuswide" --num-classes 5 --defense-type NONE --device cuda:6 --aux-set-size 1500 --update-period 10 --perturb-noise 0.2 --grad-clip 1.0 --log-interval 10 --image-size 128 --selected-concepts buildings grass animal water person > splitnn_nuswide_training.log 2>&1 &
+
+nohup python train_bank_splitnn.py --dataset BANK --data-dir "/home/steve/VFLIP-esorics24-master/data/bank" --batch-size 64 --epochs 50 --lr 0.002 --momentum 0.9 --weight-decay 0.0005 --trigger-scale 0.85 --gpu 1 --target-class 0 --bkd-adversary 1 --party-num 3 --patience 12 --min-epochs 30 --backdoor-weight 5.0 --has-label-knowledge True --poison-budget 0.06 --defense-type NONE --Ebkd 5 --checkpoint-dir "./checkpoints_splitnn_bank" --num-classes 2 --device cuda:1 --aux-set-size 1000 --update-period 10 --perturb-noise 0.2 --grad-clip 1.0 --log-interval 10 > splitnn_bank_training.log 2>&1 &
+
+

@@ -1,3 +1,8 @@
+datasets
+fed
+fed_code/*.txt
+fed_code/checkpoint*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
