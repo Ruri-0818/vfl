@@ -1260,15 +1260,13 @@ def main():
     schedulers = [optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
                                                      mode='max', 
                                                      factor=0.5, 
-                                                     patience=5,
-                                                     verbose=True) 
+                                                     patience=5,) 
                  for optimizer in optimizers]
     
     schedulerC = optim.lr_scheduler.ReduceLROnPlateau(optimizerC, 
                                                     mode='max', 
                                                     factor=0.5, 
-                                                    patience=5,
-                                                    verbose=True)
+                                                    patience=5,)
 
     # 预训练阶段: 收集标签推断数据并强制初始化推断模块
     print("\n" + "="*60)
