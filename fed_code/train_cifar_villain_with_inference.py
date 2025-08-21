@@ -17,6 +17,7 @@ from sklearn.decomposition import PCA
 import time
 import random
 from tqdm import tqdm
+from defense_all import *
 
 # 扩展命令行参数
 parser = argparse.ArgumentParser(description='针对CIFAR数据集的VILLAIN攻击训练 (带标签推断)')
@@ -76,9 +77,19 @@ parser.add_argument('--early-stopping', action='store_true',
 parser.add_argument('--monitor', type=str, default='test_acc', choices=['test_acc', 'inference_acc'],
                     help='监控指标，用于早停判断 (default: test_acc)')
 
+# my defense
+parser.add_argument('--tau', type=float, default=5.0)
+parser.add_argument('--k-min', type=int, default=3)
+
 # 设置全局变量
 args = parser.parse_args()
 DEVICE = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+
+# 打印所有参数
+print("========== 参数列表 ==========")
+for k, v in vars(args).items():
+    print(f"{k}: {v}")
+print("=" * 50)
 
 # 标签推断器实现
 class LabelInferenceModule:
@@ -675,7 +686,17 @@ def train_epoch(modelC, bottom_models, train_loader, optimizers, optimizerC, epo
                 output = model(bkd_data)
             bottom_outputs_bkd.append(output)
         
-        combined_output_bkd = torch.cat(bottom_outputs_bkd, dim=1)
+        combined_output_bkd = torch.cat(bottom_outputs_bkd, dim=1)  # [bs, 256]
+        if args.defense_type == "MY":
+            # bkd_target.shape [bs] attack_flags [bs]
+            f_clean, kept_idx, removed_idx, poison_mask = dct_trigger_filter(combined_output_bkd, tau=args.tau, k_min=args.k_min) 
+            # [bs-clean, 256], [clean], [noclean], [bs]
+            clean_target = bkd_target.clone()
+            clean_target = remove_by_index(bkd_target, removed_idx)
+            combined_output_bkd = f_clean
+            bkd_target = clean_target
+            attack_flags = remove_by_index(attack_flags, removed_idx)
+
         output_bkd = modelC(combined_output_bkd)
         loss_bkd = criterion(output_bkd, bkd_target)
         
@@ -872,7 +893,17 @@ def test(modelC, bottom_models, test_loader, is_backdoor=False, epoch=0, args=No
                             output = model(bkd_data)
                         bottom_outputs_bkd.append(output)
                     
-                    combined_output_bkd = torch.cat(bottom_outputs_bkd, dim=1)
+                    combined_output_bkd = torch.cat(bottom_outputs_bkd, dim=1)  # [bs, 256]
+                    if args.defense_type == "MY":
+                        # bkd_target.shape [bs] attack_flags [bs]
+                        f_clean, kept_idx, removed_idx, poison_mask = dct_trigger_filter(combined_output_bkd, tau=args.tau, k_min=args.k_min) 
+                        # [bs-clean, 256], [clean], [noclean], [bs]
+                        clean_target = bkd_target.clone()
+                        clean_target = remove_by_index(bkd_target, removed_idx)
+                        combined_output_bkd = f_clean
+                        bkd_target = clean_target
+                        attack_flags = remove_by_index(attack_flags, removed_idx)
+
                     output_bkd = modelC(combined_output_bkd)
                     
                     # 预测后门样本

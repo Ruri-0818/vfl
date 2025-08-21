@@ -681,7 +681,7 @@ def dct_trigger_filter(
     # 4) 判定整条 embedding 是否“含触发”
     count_anom = anomaly.sum(dim=-1)                                      # [B]
     poison_mask = count_anom >= k_min                                     # [B] True=删
-    print(f"[My Defense] poison_mask: {poison_mask}")
+    # print(f"[My Defense] tau: {tau}, k_min: {k_min}, poison_mask: {poison_mask}")
 
     # 5) 过滤
     kept_idx = (~poison_mask).nonzero(as_tuple=False).squeeze(-1)

@@ -2,6 +2,7 @@ datasets
 fed
 fed_code/*.txt
 fed_code/checkpoint*
+fed_code/res/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
