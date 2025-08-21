@@ -618,3 +618,74 @@ def build_defense(model: nn.Module,
     else:
         # 对于 "NONE" 或未知的防御类型，返回空的 hooks
         return model, optimizer, hooks 
+    
+import torch
+import numpy as np
+from scipy.fft import dct, idct
+
+# --- SciPy DCT/IDCT 包装：保持 torch.Tensor 接口 ---
+def dct_scipy(x: torch.Tensor) -> torch.Tensor:
+    """
+    x: [B, D] torch tensor (on CPU/GPU)
+    return: [B, D] torch tensor (same dtype/device as x)
+    """
+    dev, dtype = x.device, x.dtype
+    X_np = dct(x.detach().cpu().numpy(), type=2, norm='ortho', axis=-1)  # CPU numpy
+    return torch.from_numpy(X_np).to(dev, dtype=dtype)
+
+def idct_scipy(X: torch.Tensor) -> torch.Tensor:
+    dev, dtype = X.device, X.dtype
+    x_np = idct(X.detach().cpu().numpy(), type=2, norm='ortho', axis=-1)  # CPU numpy
+    return torch.from_numpy(x_np).to(dev, dtype=dtype)
+
+def remove_by_index(tensor: torch.Tensor, removed_idx: torch.Tensor):
+    if removed_idx.numel() == 0:
+        return tensor  # 没有要删除的
+    mask = torch.ones(tensor.shape[0], dtype=torch.bool, device=tensor.device)
+    mask[removed_idx] = False
+    return tensor[mask]
+
+@torch.no_grad()
+def dct_trigger_filter(
+    x: torch.Tensor,
+    tau: float = 4.0,        # 频域鲁棒 z-score 阈值；越小越敏感
+    k_min: int = 3,          # 判为触发所需异常频点最小个数
+    keep_lowpass: int = 4,   # 忽略最前低频系数个数
+    eps: float = 1e-6,
+):
+    """
+    x: [B, 256]
+    return:
+      clean: [B_clean, 256]
+      kept_idx: [B_clean] long
+      removed_idx: [B_removed] long
+      poison_mask: [B] bool  (True 表示含 trigger，被删除)
+    """
+    assert x.dim() == 2 and x.shape[1] == 256, "期待输入 [B,256]"
+    B, D = x.shape
+
+    # 1) SciPy DCT-II (ortho)
+    X = dct_scipy(x)  # [B,256]
+
+    # 2) median + MAD（逐样本鲁棒统计）
+    median = X.median(dim=-1, keepdim=True).values                       # [B,1]
+    mad = (X - median).abs().median(dim=-1, keepdim=True).values         # [B,1]
+    z = (X - median).abs() / (mad + eps)                                  # [B,256]
+
+    # 3) 异常频点掩码；保护极低频
+    anomaly = z > tau                                                     # [B,256]
+    if keep_lowpass > 0:
+        lp = min(keep_lowpass, D)
+        anomaly[:, :lp] = False
+
+    # 4) 判定整条 embedding 是否“含触发”
+    count_anom = anomaly.sum(dim=-1)                                      # [B]
+    poison_mask = count_anom >= k_min                                     # [B] True=删
+    print(f"[My Defense] poison_mask: {poison_mask}")
+
+    # 5) 过滤
+    kept_idx = (~poison_mask).nonzero(as_tuple=False).squeeze(-1)
+    removed_idx = (poison_mask).nonzero(as_tuple=False).squeeze(-1)
+
+    clean = x[kept_idx] if kept_idx.numel() > 0 else x.new_zeros((0, D))
+    return clean, kept_idx, removed_idx, poison_mask
