@@ -136,6 +136,12 @@ parser.add_argument('--mp-adaptive', action='store_true', help='Enable adaptive 
 args = parser.parse_args()
 DEVICE = torch.device(args.device if 'cuda' in args.device and torch.cuda.is_available() else "cpu")
 
+# 打印所有参数
+print("========== 参数列表 ==========")
+for k, v in vars(args).items():
+    print(f"{k}: {v}")
+print("=" * 50)
+
 # 标签推断器实现
 class BadVFLLabelInference:
     """BadVFL攻击中的标签推断模块，直接使用模型输出进行推断"""
@@ -937,7 +943,7 @@ def train_epoch(modelC, bottom_models, optimizers, optimizerC, train_loader, epo
             raise ValueError("Optimizer not found in defense_hooks")
         optimizer = defense_hooks.optimizer
     else:
-    modelC.train()
+        modelC.train()
         for model in bottom_models:
             model.train()
         batch_memory_manager = None
@@ -973,7 +979,7 @@ def train_epoch(modelC, bottom_models, optimizers, optimizerC, train_loader, epo
                 if opt is not None:
                     opt.zero_grad()
             if optimizerC is not None:
-        optimizerC.zero_grad()
+                optimizerC.zero_grad()
         
         # 前向传播
         bottom_outputs = []
@@ -994,7 +1000,7 @@ def train_epoch(modelC, bottom_models, optimizers, optimizerC, train_loader, epo
             if opt is not None:
                 opt.step()
         if optimizerC is not None:
-        optimizerC.step()
+            optimizerC.step()
         
         # 更新统计信息
         total_loss += loss.item()
@@ -1022,7 +1028,7 @@ def test(modelC, bottom_models, test_loader, is_backdoor=False, epoch=0, args=No
         vfl_system = defense_hooks.instance
         vfl_system.eval()
     else:
-    modelC.eval()
+        modelC.eval()
     for i in range(len(bottom_models)):
         bottom_models[i].eval()
     
@@ -1036,35 +1042,35 @@ def test(modelC, bottom_models, test_loader, is_backdoor=False, epoch=0, args=No
             
             # 如果是后门测试，注入触发器
             if is_backdoor:
-                data, target = prepare_backdoor_data(data, target, args)
+                data, target, _attack_flags = prepare_backdoor_data(data, target, args)
             
-            # 前向传播
+            # 前向传播getattr(args, 'defense_type', 'NONE')
             if (args.defense_type.upper() == "DPSGD" and 
                 hasattr(defense_hooks, 'instance') and defense_hooks.instance is not None):
                 # 使用 VFLSystem 进行前向传播
                 output = defense_hooks.instance(data)
             else:
                 # 使用原有的分离模型进行前向传播
-            bottom_outputs = []
-            for i in range(len(bottom_models)):
-                output = bottom_models[i](data)
-                
-                # 应用防御
+                bottom_outputs = []
+                for i in range(len(bottom_models)):
+                    output = bottom_models[i](data)
+                    
+                    # 应用防御
                     if hasattr(defense_hooks, 'bottom_defenses') and i < len(defense_hooks.bottom_defenses):
                         if hasattr(defense_hooks.bottom_defenses[i], 'forward') and defense_hooks.bottom_defenses[i].forward:
-                        output = defense_hooks.bottom_defenses[i].forward(output)
+                            output = defense_hooks.bottom_defenses[i].forward(output)
+                    
+                    bottom_outputs.append(output)
                 
-                bottom_outputs.append(output)
-            
-            # 合并特征
-            combined_output = torch.cat(bottom_outputs, dim=1)
-            
-            # 对聚合特征应用防御
+                # 合并特征
+                combined_output = torch.cat(bottom_outputs, dim=1)
+                
+                # 对聚合特征应用防御
                 if hasattr(defense_hooks, 'forward') and defense_hooks.forward:
                     combined_output = defense_hooks.forward(combined_output)
-            
-            # 顶部模型
-            output = modelC(combined_output)
+                
+                # 顶部模型
+                output = modelC(combined_output)
             
             # 计算损失
             test_loss += F.cross_entropy(output, target).item()
@@ -1305,7 +1311,8 @@ def prepare_backdoor_data(data, target, args):
     attack_portion = min(attack_portion, batch_size)  # 确保不超过batch大小
     
     # 设置攻击标志
-    attack_flags = torch.zeros(batch_size, dtype=torch.bool).to(DEVICE)
+    dev = target.device
+    attack_flags = torch.zeros(batch_size, dtype=torch.bool, device=dev)
     
     if attack_portion == 0:
         # 如果没有样本需要攻击，直接返回
@@ -1522,10 +1529,10 @@ class DefenseWrapper(nn.Module):
         self.args = args
         self.train_loader = train_loader
         self.optimizer = optimizer  # 新增 optimizer 参数
-            self._init_defense()
+        self._init_defense()
     
     def _init_defense(self):
-        args_dict = vars(self.args)
+        args_dict = vars(self.args).copy()
         if 'defense_type' in args_dict:
             del args_dict['defense_type']
         _, _, self.defense_hooks = build_defense(
@@ -1674,7 +1681,7 @@ def main():
         
         print("DPSGD defense initialized with PrivacyEngine and BatchMemoryManager")
     
-        else:
+    else:
         # 非 DPSGD 防御的处理
         defense_wrapper = DefenseWrapper(bottom_models, modelC, defense_type, args, train_loader, optimizerC)
         defense_hooks = defense_wrapper.defense_hooks
@@ -1928,7 +1935,7 @@ def train_epoch_with_attack(modelC, bottom_models, optimizers, optimizerC, train
         vfl_system.train()
         batch_memory_manager = defense_hooks.batch_memory_manager
         optimizer = defense_hooks.optimizer
-        else:
+    else:
         modelC.train()
         for model in bottom_models:
             model.train()
@@ -1991,7 +1998,7 @@ def train_epoch_with_attack(modelC, bottom_models, optimizers, optimizerC, train
                 
                 # 更新参数
                 optimizer.step()
-            else:
+        else:
             # 初始化梯度
             for opt in optimizers:
                 if opt is not None:
