@@ -1394,14 +1394,10 @@ def main():
                     else:
                         adversary_model.villain_trigger.update_inference_stats()
         
-        # 组合分数标准
-        combined_score = 0.5 * test_acc + 0.5 * true_asr
-        best_combined_score = 0.5 * best_metrics['test_acc'] + 0.5 * best_metrics['asr']
-        print(f"组合分数: 当前={combined_score:.2f}, 最佳={best_combined_score:.2f}")
+        # 仅按 Test Accuracy 保存最佳权重
+        print(f"Test Acc 监控保存: 当前={test_acc:.2f}%, 最佳={best_metrics['test_acc']:.2f}%")
         
-        # 检查是否需要保存新的最佳模型
-        if combined_score > best_combined_score:
-            # 更新所有最佳指标
+        if test_acc > best_metrics['test_acc']:
             best_metrics = {
                 'test_acc': test_acc,
                 'inference_acc': test_inference_acc,
@@ -1414,16 +1410,17 @@ def main():
             best_epoch = epoch
             # 保存最佳模型
             save_checkpoint(modelC, bottom_models, optimizers, optimizerC, epoch, test_acc, true_asr, test_inference_acc)
-            print(f"\n保存最佳模型 (Epoch {epoch}) (组合分数提升)")
+            print(f"\n保存最佳模型 (Epoch {epoch}) (Test Acc 提升)")
             print(f"Clean Acc: {test_acc:.2f}%, Inference Acc: {test_inference_acc:.2f}%, ASR: {true_asr:.2f}%")
             # 重置早停计数器
             no_improvement_count = 0
         else:
             no_improvement_count += 1
-            print(f"\n没有改进: {no_improvement_count}/{args.patience} (最佳组合分数: {best_combined_score:.2f} 在 Epoch {best_epoch})")
+            print(f"\n没有改进: {no_improvement_count}/{args.patience} "
+                  f"(最佳 Test Acc: {best_accuracy:.2f}% 在 Epoch {best_epoch})")
             # 检查是否达到早停条件
             if args.early_stopping and no_improvement_count >= args.patience:
-                print(f"\n早停触发! {args.patience} 轮次内没有改进。")
+                print(f"\n早停触发! {args.patience} 轮次内 Test Acc 无提升。")
                 print(f"最佳模型 (Epoch {best_epoch}):")
                 print(f"Clean Acc: {best_accuracy:.2f}%, Inference Acc: {best_inference_acc:.2f}%, ASR: {best_asr:.2f}%")
                 break

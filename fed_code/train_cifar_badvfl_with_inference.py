@@ -992,19 +992,13 @@ def train_epoch(modelC, bottom_models, optimizers, optimizerC, train_loader, epo
         feats = torch.cat(bottom_outputs, dim=1)
         # ----【新增，最小侵入 DCT 过滤】----
         if getattr(args, 'defense_type', 'NONE').upper() == 'MY':
-            print("-"*50, 'mydefense train_epoch')
             clean_feats, kept_idx, removed_idx, poison_mask = dct_trigger_filter(
                 feats,
                 tau=args.tau,
                 k_min=args.k_min
             )
             feats = clean_feats
-            print('-'*30)
-            print(target)
-            print(kept_idx)
             target = target[kept_idx]  # 标签同步删除filter掉的
-            print(target)
-            print('-'*30)
         
         output = modelC(feats)
         
@@ -1090,19 +1084,13 @@ def test(modelC, bottom_models, test_loader, is_backdoor=False, epoch=0, args=No
                     
                 # ----【新增，最小侵入 DCT 过滤】----
                 if getattr(args, 'defense_type', 'NONE').upper() == 'MY':
-                    print("-"*50, 'mydefense test')
                     clean_feats, kept_idx, removed_idx, poison_mask = dct_trigger_filter(
                         combined_output,
                         tau=args.tau,
                         k_min=args.k_min
                     )
                     combined_output = clean_feats
-                    print('-'*30)
-                    print(target)
-                    print(kept_idx)
                     target = target[kept_idx]  # 标签同步删除filter掉的
-                    print(target)
-                    print('-'*30)
                 
                 # 顶部模型
                 output = modelC(combined_output)
@@ -1937,15 +1925,19 @@ def main():
         
         # 更新最佳结果
         if test_acc > best_clean_acc:
+            # save ckpt by best test acc
             best_clean_acc = test_acc
-        if asr > best_asr:
-            best_asr = asr
-        
-        # 保存检查点
-        if (epoch + 1) % 10 == 0 or epoch == args.epochs - 1:
             save_checkpoint(
                 modelC, bottom_models, epoch, test_acc, asr, inference_acc
             )
+        if asr > best_asr:
+            best_asr = asr
+        
+        # # 保存检查点
+        # if (epoch + 1) % 10 == 0 or epoch == args.epochs - 1:
+        #     save_checkpoint(
+        #         modelC, bottom_models, epoch, test_acc, asr, inference_acc
+        #     )
     
     # 最终结果报告
     print(f"\n{'='*50}")
@@ -2050,22 +2042,14 @@ def train_epoch_with_attack(modelC, bottom_models, optimizers, optimizerC, train
             
             # ----【新增，最小侵入 DCT 过滤】----
             if getattr(args, 'defense_type', 'NONE').upper() == 'MY':
-                print("-"*50, 'mydefense train_epoch_with_attack')
                 clean_feats, kept_idx, removed_idx, poison_mask = dct_trigger_filter(
                         feats,
                         tau=args.tau,
                         k_min=args.k_min
                     )
                 feats = clean_feats
-                print('-'*30)
-                print(target)
-                print(backdoor_target)
-                print(kept_idx)
                 target = target[kept_idx]  # 标签同步删除filter掉的
                 backdoor_target = backdoor_target[kept_idx]  # 标签同步删除filter掉的
-                print(target)
-                print(backdoor_target)
-                print('-'*30)
             
             output = modelC(feats)
             
