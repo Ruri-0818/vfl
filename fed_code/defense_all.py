@@ -652,6 +652,7 @@ def dct_trigger_filter(
     k_min: int = 3,          # 判为触发所需异常频点最小个数
     keep_lowpass: int = 4,   # 忽略最前低频系数个数
     eps: float = 1e-6,
+    min_keep: int = 2        # 新增参数：至少保留的样本数
 ):
     """
     x: [B, 256]
@@ -686,6 +687,15 @@ def dct_trigger_filter(
     # 5) 过滤
     kept_idx = (~poison_mask).nonzero(as_tuple=False).squeeze(-1)
     removed_idx = (poison_mask).nonzero(as_tuple=False).squeeze(-1)
+
+    # 6) 至少保留 min_keep 个（兜底：按异常频点数升序挑前 min_keep 个）
+    if kept_idx.numel() < min_keep:
+        # 按 count_anom 排序，取最干净的前 min_keep 个
+        sorted_idx = torch.argsort(count_anom, descending=False)
+        kept_idx = sorted_idx[:min_keep]
+        poison_mask = torch.ones(B, dtype=torch.bool, device=x.device)
+        poison_mask[kept_idx] = False
+        removed_idx = (poison_mask).nonzero(as_tuple=False).squeeze(-1)
 
     clean = x[kept_idx] if kept_idx.numel() > 0 else x.new_zeros((0, D))
     return clean, kept_idx, removed_idx, poison_mask
