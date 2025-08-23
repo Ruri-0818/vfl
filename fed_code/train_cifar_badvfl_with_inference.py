@@ -24,7 +24,7 @@ import time
 import random
 from tqdm import tqdm
 
-from defense_all import build_defense
+from defense_all import build_defense, dct_trigger_filter
 from opacus import PrivacyEngine
 from opacus.grad_sample import GradSampleModule
 import math
@@ -88,7 +88,7 @@ parser.add_argument('--aux-data-ratio', type=float, default=0.1, help='用于标
 
 # Defense-related arguments
 parser.add_argument('--defense-type', type=str, default='NONE', 
-                    help='Defense type (NONE, DPSGD, MP, ANP, BDT, VFLIP, ISO)')
+                    help='Defense type (NONE, DPSGD, MP, ANP, BDT, VFLIP, ISO, )')
 # DPSGD args
 parser.add_argument('--dpsgd-noise-multiplier', type=float, default=0.5, help='Noise multiplier for DPSGD')
 parser.add_argument('--dpsgd-max-grad-norm', type=float, default=0.5, help='Max L2 norm of per-sample gradients')
@@ -104,6 +104,9 @@ parser.add_argument('--vflip-threshold', type=float, default=3.0, help='Anomaly 
 parser.add_argument('--vflip-train-epochs', type=int, default=5, help='Number of epochs to pre-train VFLIP MAE')
 # ISO args
 parser.add_argument('--iso-lr', type=float, default=1e-3, help='Learning rate for ISO layer')
+# my defense
+parser.add_argument('--tau', type=float, default=5.0)
+parser.add_argument('--k-min', type=int, default=3)
 
 # 二元分类器参数
 parser.add_argument('--binary-classifier', type=str, default='randomforest', choices=['randomforest', 'logistic'], 
@@ -987,6 +990,22 @@ def train_epoch(modelC, bottom_models, optimizers, optimizerC, train_loader, epo
             output = model(data)
             bottom_outputs.append(output)
         feats = torch.cat(bottom_outputs, dim=1)
+        # ----【新增，最小侵入 DCT 过滤】----
+        if getattr(args, 'defense_type', 'NONE').upper() == 'MY':
+            print("-"*50, 'mydefense train_epoch')
+            clean_feats, kept_idx, removed_idx, poison_mask = dct_trigger_filter(
+                feats,
+                tau=args.tau,
+                k_min=args.k_min
+            )
+            feats = clean_feats
+            print('-'*30)
+            print(target)
+            print(kept_idx)
+            target = target[kept_idx]  # 标签同步删除filter掉的
+            print(target)
+            print('-'*30)
+        
         output = modelC(feats)
         
         # 计算损失
@@ -1068,6 +1087,22 @@ def test(modelC, bottom_models, test_loader, is_backdoor=False, epoch=0, args=No
                 # 对聚合特征应用防御
                 if hasattr(defense_hooks, 'forward') and defense_hooks.forward:
                     combined_output = defense_hooks.forward(combined_output)
+                    
+                # ----【新增，最小侵入 DCT 过滤】----
+                if getattr(args, 'defense_type', 'NONE').upper() == 'MY':
+                    print("-"*50, 'mydefense test')
+                    clean_feats, kept_idx, removed_idx, poison_mask = dct_trigger_filter(
+                        combined_output,
+                        tau=args.tau,
+                        k_min=args.k_min
+                    )
+                    combined_output = clean_feats
+                    print('-'*30)
+                    print(target)
+                    print(kept_idx)
+                    target = target[kept_idx]  # 标签同步删除filter掉的
+                    print(target)
+                    print('-'*30)
                 
                 # 顶部模型
                 output = modelC(combined_output)
@@ -2012,6 +2047,26 @@ def train_epoch_with_attack(modelC, bottom_models, optimizers, optimizerC, train
                 output = model(backdoor_data, attack_flags if model.is_adversary else None)
                 bottom_outputs.append(output)
             feats = torch.cat(bottom_outputs, dim=1)
+            
+            # ----【新增，最小侵入 DCT 过滤】----
+            if getattr(args, 'defense_type', 'NONE').upper() == 'MY':
+                print("-"*50, 'mydefense train_epoch_with_attack')
+                clean_feats, kept_idx, removed_idx, poison_mask = dct_trigger_filter(
+                        feats,
+                        tau=args.tau,
+                        k_min=args.k_min
+                    )
+                feats = clean_feats
+                print('-'*30)
+                print(target)
+                print(backdoor_target)
+                print(kept_idx)
+                target = target[kept_idx]  # 标签同步删除filter掉的
+                backdoor_target = backdoor_target[kept_idx]  # 标签同步删除filter掉的
+                print(target)
+                print(backdoor_target)
+                print('-'*30)
+            
             output = modelC(feats)
             
             # 计算损失
