@@ -14,7 +14,7 @@ timestamp=$(date +%Y%m%d_%H%M%S)
 output_dir=${output_dir}/${timestamp}
 export TIMESTAMP=${timestamp}
 export OUTPUT_DIR=${output_dir}
-mkdir -p ${output_dir}
+# mkdir -p ${output_dir}
 # ------------------------ Submit ------------------------ #
 sbatch \
     --job-name=${job_name} \
@@ -23,7 +23,7 @@ sbatch \
     --nodes=${nnodes} \
     --gres=gpu:${gpus_per_node} \
     --cpus-per-task=${cpus_per_task} \
-    --output=${output_dir}/slurm-%j.log \
+    --output=./${timestamp}_slurm-%j.log \
     --mem=${mem} \
     --time=${time} \
     $1

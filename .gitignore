@@ -3,6 +3,8 @@ fed
 fed_code/*.txt
 fed_code/checkpoint*
 fed_code/res/*
+fed_code/res*
+*slurm*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
