@@ -102,6 +102,7 @@ parser.add_argument('--bdt-prune-ratio', type=float, default=0.2, help='Prune ra
 # VFLIP args
 parser.add_argument('--vflip-threshold', type=float, default=3.0, help='Anomaly threshold for VFLIP')
 parser.add_argument('--vflip-train-epochs', type=int, default=5, help='Number of epochs to pre-train VFLIP MAE')
+parser.add_argument('--input-dim', type=int, default=1024, help='vflip and iso use')
 # ISO args
 parser.add_argument('--iso-lr', type=float, default=1e-3, help='Learning rate for ISO layer')
 # my defense
@@ -984,36 +985,36 @@ def train_epoch(modelC, bottom_models, optimizers, optimizerC, train_loader, epo
             if optimizerC is not None:
                 optimizerC.zero_grad()
         
-        # 前向传播
-        bottom_outputs = []
-        for model in bottom_models:
-            output = model(data)
-            bottom_outputs.append(output)
-        feats = torch.cat(bottom_outputs, dim=1)
-        # ----【新增，最小侵入 DCT 过滤】----
-        if getattr(args, 'defense_type', 'NONE').upper() == 'MY':
-            clean_feats, kept_idx, removed_idx, poison_mask = dct_trigger_filter(
-                feats,
-                tau=args.tau,
-                k_min=args.k_min
-            )
-            feats = clean_feats
-            target = target[kept_idx]  # 标签同步删除filter掉的
-        
-        output = modelC(feats)
-        
-        # 计算损失
-        loss = F.cross_entropy(output, target)
-        
-        # 反向传播
-        loss.backward()
-        
-        # 立即更新参数
-        for opt in optimizers:
-            if opt is not None:
-                opt.step()
-        if optimizerC is not None:
-            optimizerC.step()
+            # 前向传播
+            bottom_outputs = []
+            for model in bottom_models:
+                output = model(data)
+                bottom_outputs.append(output)
+            feats = torch.cat(bottom_outputs, dim=1)
+            # # ----【新增，最小侵入 DCT 过滤】----
+            # if getattr(args, 'defense_type', 'NONE').upper() == 'MY':
+            #     clean_feats, kept_idx, removed_idx, poison_mask = dct_trigger_filter(
+            #         feats,
+            #         tau=args.tau,
+            #         k_min=args.k_min
+            #     )
+            #     feats = clean_feats
+            #     target = target[kept_idx]  # 标签同步删除filter掉的
+            
+            output = modelC(feats)
+            
+            # 计算损失
+            loss = F.cross_entropy(output, target)
+            
+            # 反向传播
+            loss.backward()
+            
+            # 立即更新参数
+            for opt in optimizers:
+                if opt is not None:
+                    opt.step()
+            if optimizerC is not None:
+                optimizerC.step()
         
         # 更新统计信息
         total_loss += loss.item()
