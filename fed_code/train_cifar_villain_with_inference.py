@@ -1397,6 +1397,12 @@ def main():
         # 仅按 Test Accuracy 保存最佳权重
         print(f"Test Acc 监控保存: 当前={test_acc:.2f}%, 最佳={best_metrics['test_acc']:.2f}%")
         
+        if true_asr > best_asr:
+            best_asr = true_asr
+        if test_acc > best_accuracy:
+            best_accuracy = test_acc
+            
+        
         if test_acc > best_metrics['test_acc']:
             best_metrics = {
                 'test_acc': test_acc,
@@ -1404,9 +1410,9 @@ def main():
                 'asr': true_asr,
                 'epoch': epoch
             }
-            best_accuracy = test_acc
+            # best_accuracy = test_acc
             best_inference_acc = test_inference_acc
-            best_asr = true_asr
+            # best_asr = true_asr
             best_epoch = epoch
             # 保存最佳模型
             save_checkpoint(modelC, bottom_models, optimizers, optimizerC, epoch, test_acc, true_asr, test_inference_acc)
@@ -1431,6 +1437,8 @@ def main():
     print(f"Clean Accuracy: {best_metrics['test_acc']:.2f}%")
     print(f"Inference Accuracy: {best_metrics['inference_acc']:.2f}%")
     print(f"Attack Success Rate: {best_metrics['asr']:.2f}%")
+    print(f"Best test acc: {best_accuracy:.2f}%")
+    print(f"Best test asr: {best_asr:.2f}%")
     print("="*60)
     
     print("\n使用二元分类器标签推断的运行命令示例:")
