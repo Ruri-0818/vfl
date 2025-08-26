@@ -1084,14 +1084,15 @@ def test(modelC, bottom_models, test_loader, is_backdoor=False, epoch=0, args=No
                     combined_output = defense_hooks.forward(combined_output)
                     
                 # ----【新增，最小侵入 DCT 过滤】----
-                if getattr(args, 'defense_type', 'NONE').upper() == 'MY':
-                    clean_feats, kept_idx, removed_idx, poison_mask = dct_trigger_filter(
-                        combined_output,
-                        tau=args.tau,
-                        k_min=args.k_min
-                    )
-                    combined_output = clean_feats
-                    target = target[kept_idx]  # 标签同步删除filter掉的
+                if is_backdoor:
+                    if getattr(args, 'defense_type', 'NONE').upper() == 'MY':
+                        clean_feats, kept_idx, removed_idx, poison_mask = dct_trigger_filter(
+                            combined_output,
+                            tau=args.tau,
+                            k_min=args.k_min
+                        )
+                        combined_output = clean_feats
+                        target = target[kept_idx]  # 标签同步删除filter掉的
                 
                 # 顶部模型
                 output = modelC(combined_output)
@@ -2130,10 +2131,10 @@ def create_backdoor_test_loader(test_loader, args):
     test_data = all_data[non_target_mask]
     test_targets = all_targets[non_target_mask]
     
-    # 限制测试样本数量
-    max_test_samples = min(1000, len(test_data))
-    test_data = test_data[:max_test_samples]
-    test_targets = test_targets[:max_test_samples]
+    # # 限制测试样本数量
+    # max_test_samples = min(1000, len(test_data))
+    # test_data = test_data[:max_test_samples]
+    # test_targets = test_targets[:max_test_samples]
     
     # 准备后门数据
     backdoor_data, backdoor_targets, attack_flags = prepare_backdoor_data(
@@ -2178,9 +2179,9 @@ def test_label_inference(modelC, bottom_models, test_loader, args):
                 correct += (inferred_labels == target).sum().item()
                 total += target.size(0)
             
-            # 限制测试样本数量以节省时间
-            if total >= 1000:
-                break
+            # # 限制测试样本数量以节省时间
+            # if total >= 1000:
+            #     break
     
     return 100. * correct / total if total > 0 else 0
 
